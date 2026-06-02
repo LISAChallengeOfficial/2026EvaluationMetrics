@@ -1,0 +1,5 @@
+numpy
+pandas
+SimpleITK
+surface-distance
+scikit-learn
