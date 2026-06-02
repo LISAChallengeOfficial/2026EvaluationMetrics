@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue May  6 09:49:46 2025
 
-"""
-### For Basal Ganglia 
 import os
 import argparse
 import pandas as pd
