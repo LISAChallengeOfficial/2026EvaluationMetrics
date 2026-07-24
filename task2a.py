@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue May  6 09:49:46 2025
-
-For hippocampus evaluation (labels 1=LH, 2=RH)
-"""
-
 import os
 import argparse
 import pandas as pd
@@ -20,6 +12,22 @@ from surface_distance.metrics import (
     compute_robust_hausdorff,
 )
 
+LABEL_NAMES = {
+    1: "Hippocampus_L",
+    2: "Hippocampus_R",
+    3: "Ventricle_L",
+    4: "Ventricle_R",
+    5: "Caudate_L",
+    6: "Caudate_R",
+    7: "Lentiform_L",
+    8: "Lentiform_R",
+    9: "Thalamus_L",
+    10: "Thalamus_R",
+    11: "CorpusCallosum"
+}
+import utils
+PRED_PARENT_DIR = "segs"
+GT_PARENT_DIR = "masks"
 def load_image(path):
     return sitk.ReadImage(path)
 
@@ -34,7 +42,7 @@ def compute_metrics(gt_array, pred_array, voxel_size):
         return [dsc, hd, hd95, assd, rve]
 
     label_metrics = {}
-    for label in [1, 2]:  # 1 = LH, 2 = RH
+    for label in range(1, 12):  # labels: 1 to 11
         label_metrics[label] = score(gt_array == label, pred_array == label)
     return label_metrics
 
@@ -43,7 +51,9 @@ def find_best_match(target_filename, candidate_filenames):
     matches = difflib.get_close_matches(target_filename, candidate_filenames, n=1, cutoff=0.5)
     return matches[0] if matches else None
 
-def run_scoring(gt_dir, pred_dir, output_path):
+def run_scoring(gt_file, pred_file, output_path):
+    pred_dir = utils.inspect_zip(pred_file, path=PRED_PARENT_DIR)
+    gt_dir = utils.inspect_zip(gt_file, path=GT_PARENT_DIR)
     gt_files = [f for f in os.listdir(gt_dir) if f.endswith(".nii.gz")]
     pred_files = [f for f in os.listdir(pred_dir) if f.endswith(".nii.gz")]
     results = []
@@ -73,7 +83,8 @@ def run_scoring(gt_dir, pred_dir, output_path):
 
         row = {"scan_id": subject_id}
         all_vals = []
-        for label, region in zip([1, 2], ["Hippocampus_L", "Hippocampus_R"]):
+        for label in range(1,12):
+            region = LABEL_NAMES[label]
             dsc, hd, hd95, assd, rve = metrics[label]
             row.update({
                 f"DSC_{region}": dsc,
@@ -99,41 +110,42 @@ def run_scoring(gt_dir, pred_dir, output_path):
     if not results:
         print("No valid predictions found. No results to score.")
         with open("result_annotations.json", "w", encoding="utf-8") as f:
-            json.dump({"status": "NO_VALID_RESULTS"}, f, indent=4, ensure_ascii=False)
+            json.dump({"submission_status": "NO_VALID_RESULTS"}, f, indent=4, ensure_ascii=False)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump([], f, indent=4, ensure_ascii=False)
         return
 
     df = pd.DataFrame(results).sort_values(by="scan_id")
-    df.to_csv("all_scores_hippocampus.csv", index=False)
+    #df.to_csv("all_scores_hippocampus.csv", index=False)
 
     numeric_df = df.select_dtypes(include=[np.number])
     avg = numeric_df.mean().round(3)
     std = numeric_df.std().round(3)
 
-    summary = {"status": "SCORED"}
+    summary = {"submission_status": "SCORED"}
     for col in numeric_df.columns:
         summary[col] = f"{avg[col]:.2f}±{std[col]:.2f}"
 
     with open("result_annotations.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=4, ensure_ascii=False)
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=4, ensure_ascii=False)
 
-    print(json.dumps(summary, indent=4, ensure_ascii=False))
-    print("Saved evaluation results.")
+    #summary_filtered = {k: v for k, v in summary.items() if k == "submission_status" or k.endswith("_Avg")}
+    #summary_filtered = {k: v for k, v in summary.items() if k == "submission_status"}
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=4, ensure_ascii=False)
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Evaluation script for hippocampus segmentation.")
-    parser.add_argument("-g", "--gt_dir", default="./masks", help="Path to the ground truth masks folder.")
-    parser.add_argument("-p", "--pred_dir", default="./segs", help="Path to the prediction folder.")
+    parser = argparse.ArgumentParser(description="Evaluation script for basal ganglia segmentation.")
+    parser.add_argument("-g", "--gt_file", default="./masks_bg", help="Path to the ground truth masks folder.")
+    parser.add_argument("-p", "--pred_file", default="./segment_bg", help="Path to the prediction folder.")
     parser.add_argument("-o", "--output", default="results.json", help="Path to the output JSON file.")
     return parser.parse_args()
 
 def main():
     args = get_args()
-    run_scoring(args.gt_dir, args.pred_dir, args.output)
+    run_scoring(args.gt_file, args.pred_file, args.output)
 
 if __name__ == "__main__":
     main()
+
