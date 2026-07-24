@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jun 19 19:01:24 2024
-
-@author: rrouhi, szanjal
-"""
-
 ## DESCRIPTION ##
 # This script evaluates classification performance for multiple image artifact categories:
 # - Noise, Zipper, Positioning, Banding, Motion, Contrast, Distortion
